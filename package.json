@@ -1,0 +1,44 @@
+{
+  "name": "rollup-plugin-ast-macros",
+  "version": "0.5.0",
+  "description": "Apply AST-based macros at build-time",
+  "license": "MIT",
+  "author": "Shane Holloway",
+  "homepage": "https://github.com/shanewholloway/rollup-plugin-ast-macros#readme",
+  "keywords": [
+    "rollup",
+    "rollup-plugin",
+    "macro",
+    "ast"
+  ],
+  "files": [
+    "cjs",
+    "esm",
+    "umd"
+  ],
+  "main": "cjs/index.js",
+  "module": "esm/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shanewholloway/rollup-plugin-ast-macros.git"
+  },
+  "dependencies": {
+    "transform-ast": "^2.4.4",
+    "vm2": "^3.6.3"
+  },
+  "devDependencies": {
+    "rollup": "^0.64.1",
+    "rollup-plugin-ast-macros": "file:.",
+    "rollup-plugin-commonjs": "^9.1.5",
+    "rollup-plugin-node-resolve": "^3.3.0",
+    "rollup-plugin-prettier": "^0.4.0",
+    "rollup-pluginutils": "^2.3.1"
+  },
+  "scripts": {
+    "clean": "rm -rf cjs/ esm/",
+    "build": "rollup --config",
+    "watch": "npm -s run build -- --watch",
+    "pretest": "npm -s run build",
+    "test": "rollup --config test/test.rollup.config.js"
+  }
+}
