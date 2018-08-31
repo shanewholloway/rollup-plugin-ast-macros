@@ -1,27 +1,36 @@
 const { NodeVM } = require('vm2')
 
 export default bind_ast_macro_transform
-export function bind_ast_macro_transform(macros, vm2_opt) {
+export function bind_ast_macro_transform(macros, visitors, vm2_opt) {
   if (null == vm2_opt) vm2_opt = {}
 
-  macros = Object.create(
-    macros || null,
-    { MACRO: {value: MACRO} });
+  visitors = Object.assign({__proto__: macro_builtin_visitors}, visitors)
 
   const builtin = vm2_opt.builtin || [
     'os', 'util', 'zlib', 'assert',
     'path', 'url', 'querystring', 'punycode', ]
 
+  const sandbox = vm2_opt.sandbox || {}
   const vm = new NodeVM({
     require: { external: false, builtin },
-    sandbox: vm2_opt.sandbox,
-    console: 'inherit',
-    wrapper: 'none', });
+    sandbox, console: 'inherit', wrapper: 'none', });
+
+  macros = Object.create(
+    macros || null,
+    { MACRO: {value: MACRO},
+      globals: {value: sandbox},
+    });
 
   return ast_macro_transform
 
   function ast_macro_transform(ast_node) {
-    return macro_xform(macros, ast_node);
+    const fn = visitors[ast_node.type]
+    if (fn) {
+      const ans = fn.call(visitors, macros, ast_node)
+      if (undefined !== ans) {
+        ast_node.edit.update(`${ans}`);
+      }
+    }
   }
 
   function MACRO(xforms) {
@@ -34,21 +43,37 @@ export function bind_ast_macro_transform(macros, vm2_opt) {
   }
 }
 
-export function macro_xform(macros, ast_node) {
-  if (ast_node.type !== 'CallExpression') return ;
+export const macro_builtin_visitors = {
+  __proto__: null,
 
-  const callee = ast_node.callee;
-  if (callee.type !== 'Identifier') return ;
+  CallExpression(macros, ast_node) {
+    const callee = ast_node.callee;
+    if (callee.type !== 'Identifier') return ;
 
-  const xform = macros[callee.name];
-  if ('function' !== typeof xform) return ;
+    const xform = macros[callee.name];
+    if ('function' !== typeof xform) return ;
 
-  const src_args = ast_node.arguments.map(e => e.getSource());
-  macros.ast_node = ast_node
+    const src_args = ast_node.arguments.map(e => e.getSource());
 
-  const ans = xform.apply(macros, src_args);
-  if ('string' === typeof ans) {
-    ast_node.edit.update(ans);
-  }
+    macros.ast_node = ast_node
+    return xform.apply(macros, src_args);
+  },
+
+  TaggedTemplateExpression(macros, ast_node) {
+    const tag = ast_node.tag;
+    if (tag.type !== 'Identifier') return ;
+
+    const quasi = ast_node.quasi
+    if (quasi.type !== 'TemplateLiteral') return ;
+
+    const xform = macros[tag.name];
+    if ('function' !== typeof xform) return ;
+
+    const src_args = quasi.expressions.map(e=>e.getSource())
+    src_args.unshift(quasi.quasis.map(e=>e.getSource()))
+
+    macros.ast_node = ast_node
+    return xform.apply(macros, src_args);
+  },
 }
 

@@ -15,7 +15,7 @@ function ast_macros(config=default_config) {
     transform(source, id) {
       if (! filter(id)) return;
 
-      const ast_macro_transform = bind_ast_macro_transform(config.macros, config.vm2_opt);
+      const ast_macro_transform = bind_ast_macro_transform(config.macros, config.visitors, config.vm2_opt);
 
       const ast_opts = Object.assign({parser: this}, config.ast_opts);
       const magic_str = transformform_ast(source, ast_opts, ast_macro_transform);

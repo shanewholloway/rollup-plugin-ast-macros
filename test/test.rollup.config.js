@@ -5,8 +5,13 @@ const sourcemap = 'inline'
 const plugins = [ rpi_ast_macros(), rpi_prettier() ]
 const external = []
 
-export default {
-	input: 'test/example.js',
-	output: {format: 'es', sourcemap},
-  plugins, external}
+export default [
+  { input: 'test/example.js',
+    output: {format: 'es', sourcemap},
+    plugins, external },
+
+  { input: 'test/example_template.js',
+    output: {format: 'es', sourcemap},
+    plugins, external },
+]
 
