@@ -1,10 +1,9 @@
 const { NodeVM } = require('vm2')
 
-export default bind_ast_macro_transform
-export function bind_ast_macro_transform(macros, visitors, vm2_opt) {
-  if (null == vm2_opt) vm2_opt = {}
 
-  visitors = Object.assign({__proto__: macro_builtin_visitors}, visitors)
+export default bind_ast_macro_transform
+export function bind_ast_macro_transform(macros, vm2_opt) {
+  if (null == vm2_opt) vm2_opt = {}
 
   const builtin = vm2_opt.builtin || [
     'os', 'util', 'zlib', 'assert',
@@ -17,19 +16,21 @@ export function bind_ast_macro_transform(macros, visitors, vm2_opt) {
 
   macros = Object.create(
     macros || null,
-    { MACRO: {value: MACRO},
-      globals: {value: sandbox},
-    });
+    { MACRO: {value: MACRO} });
 
+  ast_macro_transform.visitors = macro_builtin_visitors
   return ast_macro_transform
 
   function ast_macro_transform(ast_node) {
-    const fn = visitors[ast_node.type]
-    if (fn) {
-      const ans = fn.call(visitors, macros, ast_node)
-      if (undefined !== ans) {
-        ast_node.edit.update(`${ans}`);
-      }
+    const visitors = undefined !== this ? this
+      : ast_macro_transform.visitors
+
+    const fn = visitors[ast_node.type];
+    if (undefined === fn) return ;
+
+    const ans = fn.call(visitors, macros, ast_node)
+    if (undefined !== ans) {
+      ast_node.edit.update(''+ans);
     }
   }
 

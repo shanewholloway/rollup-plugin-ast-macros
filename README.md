@@ -147,6 +147,8 @@ MACRO({
 - `require('querystring')`
 - `require('punycode')`
 
+This can be customized with `{vm2: {builtin: []}}`
+
 
 ##### AST transformations
 
