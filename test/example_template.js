@@ -8,19 +8,27 @@ MACRO({
 
   CSS(strings, ...args) {
     let res = '`' + strings[0]
-    for (let i=0; i<args.length; i++) 
+    for (let i=0; i<args.length; i++)
       res += args[i] + (strings[i+1] || '')
     res += '`'
     return res
   },
 })
 
-LET({ color: 'blue', height: 100, dayIsOdd: new Date().getDay() & 1 })
+LET({
+  color: 'blue',
+  height: 100,
+  dayIsOdd: new Date().getDay() & 1,
+  buildDate: new Date().toISOString().replace(/:\d\d\..*Z/, ''),
+})
 
 const css_styles = CSS`
   .somewhere {
     top: ${ EXPR(20 + height) } px;
     border: ${ EXPR(1 + 2) } px ${ EXPR( dayIsOdd ? 'solid' : 'dashed' ) } ${color};
+  }
+  .somewhere::before {
+    content: "${ EXPR(buildDate) }";
   }
 `
 

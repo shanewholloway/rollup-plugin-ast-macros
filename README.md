@@ -7,6 +7,7 @@ Inlining expanded constants can improve performance.
 
 ## Example
 
+### Virtual DOM Example
 Build-time macro for an [IJK-like transform][ijk] for use with [hyperapp][], [superfine][], or [preact][]
 
 ```javascript
@@ -55,6 +56,58 @@ export const view = count => ({
 })
 ```
 
+### CSS-in-JS Example
+
+```javascript
+MACRO({
+  EXPR: expr => new Function(`return (${expr})`).call(null),
+
+  LET(expr) {
+    Object.assign(global, this.EXPR(expr))
+    return ''
+  },
+
+  CSS(strings, ...args) {
+    let res = '`' + strings[0]
+    for (let i=0; i<args.length; i++)
+      res += args[i] + (strings[i+1] || '')
+    res += '`'
+    return res
+  },
+})
+
+LET({
+  color: 'blue',
+  height: 100,
+  dayIsOdd: new Date().getDay() & 1,
+  buildDate: new Date().toISOString().replace(/:\d\d\..*Z/, ''),
+})
+
+const css_styles = CSS`
+  .somewhere {
+    top: ${ EXPR(20 + height) } px;
+    border: ${ EXPR(1 + 2) } px ${ EXPR( dayIsOdd ? 'solid' : 'dashed' ) } ${color};
+  }
+  .somewhere::before {
+    content: "${ EXPR(buildDate) }";
+  }
+`
+```
+
+##### Output (with [`prettier`][])
+
+```javascript
+const css_styles = `
+  .somewhere {
+    top: 120 px;
+    border: 3 px solid color;
+  }
+  .somewhere::before {
+    content: "2018-08-31T16:05";
+  }
+`;
+```
+
 ## Implementation
 
 The heavy lifting for AST transform is provided by the excellent [`transform-ast`][] and [`magic-string`][] packages.
@@ -65,7 +118,7 @@ Macro functions are evaluated in [`VM2.NodeVM`][] isolation, providing a measure
 #### `MACRO(«object expression»)`
 
 Allows defining new macros and variables. A single argument of type object is expected.
-The expression will be evaluated in a `VM2.NodeVM` context and the result assigned to 
+The expression will be evaluated in a `VM2.NodeVM` context and the result assigned to
 the macro namespace. Any functions defined at the root will define new macros.
 
 ##### Defined macro functions
