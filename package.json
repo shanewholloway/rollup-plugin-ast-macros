@@ -1,6 +1,6 @@
 {
   "name": "rollup-plugin-ast-macros",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Apply AST-based macros at build-time",
   "license": "MIT",
   "author": "Shane Holloway",

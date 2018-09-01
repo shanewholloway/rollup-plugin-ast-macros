@@ -16,7 +16,10 @@ export function bind_ast_macro_transform(macros, vm2_opt) {
 
   macros = Object.create(
     macros || null,
-    { MACRO: {value: MACRO} });
+    { MACRO: {value: MACRO, enumerable: true},
+      ast_node: {value: null, enumerable: true, writable: true},
+      ast_args: {value: null, enumerable: true, writable: true},
+    });
 
   ast_macro_transform.visitors = macro_builtin_visitors
   return ast_macro_transform
@@ -28,10 +31,7 @@ export function bind_ast_macro_transform(macros, vm2_opt) {
     const fn = visitors[ast_node.type];
     if (undefined === fn) return ;
 
-    const ans = fn.call(visitors, macros, ast_node)
-    if (undefined !== ans) {
-      ast_node.edit.update(''+ans);
-    }
+    fn.call(visitors, macros, ast_node)
   }
 
   function MACRO(xforms) {
@@ -44,20 +44,48 @@ export function bind_ast_macro_transform(macros, vm2_opt) {
   }
 }
 
+function as_ast_source(e) {
+  if (Array.isArray(e))
+    return e.map(as_ast_source);
+  else if (null === e || undefined === e )
+    return e;
+  else if ('function' === typeof e.getSource)
+    return e.getSource();
+  else return e;
+}
+
 export const macro_builtin_visitors = {
   __proto__: null,
+
+  _apply_macro(macros, xform_key, ast_node, ast_args) {
+    const xform = macros[xform_key];
+    ast_node.ast_macro = xform_key;
+
+    macros.ast_node = ast_node;
+    macros.ast_args = ast_args;
+
+    const ans = xform.apply(macros, as_ast_source(ast_args));
+
+    macros.ast_node = macros.ast_args = null;
+
+    if (undefined !== ans) {
+      ast_node.edit.update(''+ans);
+
+      ast_node.prev_type = ast_node.type;
+      ast_node.type = 'ast_macro';
+    }
+    return ans
+  },
 
   CallExpression(macros, ast_node) {
     const callee = ast_node.callee;
     if (callee.type !== 'Identifier') return ;
 
-    const xform = macros[callee.name];
-    if ('function' !== typeof xform) return ;
+    const xform_key = callee.name;
+    if ('function' !== typeof macros[xform_key]) return ;
 
-    const src_args = ast_node.arguments.map(e => e.getSource());
-
-    macros.ast_node = ast_node
-    return xform.apply(macros, src_args);
+    const ast_args = ast_node.arguments;
+    return this._apply_macro(macros, xform_key, ast_node, ast_args);
   },
 
   TaggedTemplateExpression(macros, ast_node) {
@@ -67,14 +95,11 @@ export const macro_builtin_visitors = {
     const quasi = ast_node.quasi
     if (quasi.type !== 'TemplateLiteral') return ;
 
-    const xform = macros[tag.name];
-    if ('function' !== typeof xform) return ;
+    const xform_key = tag.name;
+    if ('function' !== typeof macros[xform_key]) return ;
 
-    const src_args = quasi.expressions.map(e=>e.getSource())
-    src_args.unshift(quasi.quasis.map(e=>e.getSource()))
-
-    macros.ast_node = ast_node
-    return xform.apply(macros, src_args);
+    const ast_args = [quasi.quasis].concat(quasi.expressions);
+    return this._apply_macro(macros, xform_key, ast_node, ast_args);
   },
 }
 
