@@ -13,5 +13,10 @@ export default [
   { input: 'test/example_template.js',
     output: {format: 'es', sourcemap},
     plugins, external },
+
+  { input: 'test/example_vdom_oo.js',
+    output: {format: 'es', sourcemap},
+    plugins, external },
+
 ]
 

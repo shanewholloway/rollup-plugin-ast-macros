@@ -57,19 +57,76 @@ function as_ast_source(e) {
 export const macro_builtin_visitors = {
   __proto__: null,
 
-  _apply_macro(macros, xform_key, ast_node, ast_args) {
-    const xform = macros[xform_key];
-    ast_node.ast_macro = xform_key;
+  _xform_opt_from(ast_tip, opts) {
+    while (ast_tip.type === 'MemberExpression') {
+      if (ast_tip.object.type !== 'Identifier')
+        throw new SyntaxError(`Invalid macro member ast.type (${ast_tip.object.type})`);
+
+      opts.push(ast_tip.object.name);
+      ast_tip = ast_tip.property
+    }
+
+    if (ast_tip.type !== 'Identifier')
+      throw new SyntaxError(`Invalid macro property ast.type (${ast_tip.type})`);
+
+    opts.push(ast_tip.name);
+    return opts
+  },
+
+  _xform_from(macros, ast_ident) {
+    const xmacro = {}
+    const xform = {xmacro}
+
+    if (ast_ident.type === 'Identifier') {
+      xform.key = ast_ident.name;
+      xform.fn = macros[xform.key]
+      return 'function' === typeof xform.fn ? xform : null;
+    }
+
+    if (ast_ident.type === 'MemberExpression') {
+      if (ast_ident.object.type === 'Identifier') {
+        xform.key = ast_ident.object.name;
+        const fn = macros[`_${xform.key}_`]
+        if ('function' !== typeof fn) return null;
+
+        xmacro.depth = 0
+        xmacro.opts = this._xform_opt_from(ast_ident.property, []);
+
+        xform.fn = fn.bind(macros, xmacro);
+        return xform;
+      }
+
+      if ('ast_macro' === ast_ident.object.type) {
+        const chain = ast_ident.object.xmacro
+        xmacro.depth = 1 + (chain.depth|0)
+        xmacro.chain = () => chain
+
+        xform.key = chain.key;
+        const fn = macros[`_${xform.key}_`]
+        xmacro.opts = this._xform_opt_from(ast_ident.property, []);
+
+        xform.fn = fn.bind(macros, xmacro);
+        return xform;
+      }
+    }
+  },
+
+  _apply_macro(macros, xform, ast_node, ast_args) {
+    const xmacro = ast_node.xmacro = xform.xmacro;
+    const src_args = xmacro.src_args = as_ast_source(ast_args);
+    ast_node.ast_macro = xmacro.key = xform.key;
+    
 
     macros.ast_node = ast_node;
     macros.ast_args = ast_args;
 
-    const ans = xform.apply(macros, as_ast_source(ast_args));
+    let ans = xform.fn.apply(macros, src_args);
 
     macros.ast_node = macros.ast_args = null;
 
     if (undefined !== ans) {
-      ast_node.edit.update(''+ans);
+      const result = ast_node.xmacro.result = '' + ans;
+      ast_node.edit.update(result);
 
       ast_node.prev_type = ast_node.type;
       ast_node.type = 'ast_macro';
@@ -78,28 +135,22 @@ export const macro_builtin_visitors = {
   },
 
   CallExpression(macros, ast_node) {
-    const callee = ast_node.callee;
-    if (callee.type !== 'Identifier') return ;
-
-    const xform_key = callee.name;
-    if ('function' !== typeof macros[xform_key]) return ;
+    const xform = this._xform_from(macros, ast_node.callee)
+    if (!xform) return ;
 
     const ast_args = ast_node.arguments;
-    return this._apply_macro(macros, xform_key, ast_node, ast_args);
+    return this._apply_macro(macros, xform, ast_node, ast_args);
   },
 
   TaggedTemplateExpression(macros, ast_node) {
-    const tag = ast_node.tag;
-    if (tag.type !== 'Identifier') return ;
+    const xform = this._xform_from(macros, ast_node.tag)
+    if (!xform) return ;
 
     const quasi = ast_node.quasi
     if (quasi.type !== 'TemplateLiteral') return ;
 
-    const xform_key = tag.name;
-    if ('function' !== typeof macros[xform_key]) return ;
-
     const ast_args = [quasi.quasis].concat(quasi.expressions);
-    return this._apply_macro(macros, xform_key, ast_node, ast_args);
+    return this._apply_macro(macros, xform, ast_node, ast_args);
   },
 }
 
