@@ -6,7 +6,9 @@ const transform_ast = require('transform-ast');
 const default_config = { exclude: 'node_modules/**' };
 
 export default ast_macros;
-function ast_macros(config=default_config) {
+function ast_macros(config) {
+  config = Object.assign({}, default_config, config)
+
   const filter = createFilter(config.include, config.exclude);
   const sourcemap = false !== config.sourcemap && false !== config.sourceMap;
 
