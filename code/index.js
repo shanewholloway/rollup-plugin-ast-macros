@@ -1,4 +1,4 @@
-import { createFilter } from 'rollup-pluginutils';
+import { createFilter } from '@rollup/pluginutils';
 import bind_ast_macro_transform from './macro_engine.js';
 
 const transform_ast = require('transform-ast');
